@@ -42,18 +42,50 @@ function handleError() {
   return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
 }
 
+function searchForLatLong (query){
+  let sqlSelect = 'SELECT * FROM location WHERE search_query = $1;';
+  let value = [query];
+  return client.query(sqlSelect,value)
+  .then((data)=>{
+    console.log('with in query');
+    console.log(data);
+    if(data.rowCount > 0 ){
+      return data.rows[0];
+    }else{
+      const queryData = request.query.data;
+          let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
+          superagent.get(geocodeURL)
+          .then(response =>{
+            let newlocation = new Location(query,response);
+            let insertStatement = 'INSERT INTO location (search_query, formatted_query, latitude, longitude ) VALUES ($1, $2, $3, $4);';
+            let insertValues = [newlocation.search_query,newlocation.formatted_query,newlocation.latitude,newlocation.longitude];
+            client.query(insertStatement,insertValues);
+            return newlocation;
+  
+          })
+          .catch(error => handleError() );
+    }
+  })
+}
+// app.get('/location', (request, response) => {
+//   try {
+//     const queryData = request.query.data;
+//     let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
+//     superagent.get(geocodeURL)
+//       .end((err, res) => {
+//         const location = new GEOloc(queryData, res.body);
+//         response.send(location);
+//       });
+//   } catch (error) {
+//     response.send(handleError);
+//   }
+
+// });
+
 app.get('/location', (request, response) => {
-  try {
-    const queryData = request.query.data;
-    let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
-    superagent.get(geocodeURL)
-      .end((err, res) => {
-        const location = new GEOloc(queryData, res.body);
-        response.send(location);
-      });
-  } catch (error) {
-    response.send(handleError);
-  }
+searchForLatLong(request.query.data)
+.then(location => response.send(location))
+.catch(error=> handleError() )
 
 });
 
