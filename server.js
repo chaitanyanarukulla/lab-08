@@ -9,8 +9,10 @@ const superagent = require('superagent');
 
 const app = express();
 
+
 const PORT = process.env.PORT || 3000;
 const client = new pg.Client(process.env.DATABASE_URL);
+client.connect();
 app.use(cors());
 app.use(express.static('./public'));
 
@@ -18,7 +20,7 @@ app.get('/', (request, response) => {
   response.send('server works');
 });
 
-function GEOloc(query, res) {
+function Location(query, res) {
   this.search_query = query;
   this.formatted_query = res.results[0].formatted_address;
   this.latitude = res.results[0].geometry.location.lat;
@@ -45,10 +47,14 @@ function handleError() {
 function searchForLatLong (query){
   let sqlSelect = 'SELECT * FROM location WHERE search_query = $1;';
   let value = [query];
+  console.log(value);
+  
   return client.query(sqlSelect,value)
-  .then((data)=>{
-    console.log('with in query');
+  // console.log(client.query(sqlSelect,value))
+  .then((data) => { 
     console.log(data);
+    // console.log('with in query');
+    // console.log(data);
     if(data.rowCount > 0 ){
       return data.rows[0];
     }else{
@@ -56,7 +62,7 @@ function searchForLatLong (query){
           let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
           superagent.get(geocodeURL)
           .then(response =>{
-            let newlocation = new Location(query,response);
+            let newlocation = new Location(query,res);
             let insertStatement = 'INSERT INTO location (search_query, formatted_query, latitude, longitude ) VALUES ($1, $2, $3, $4);';
             let insertValues = [newlocation.search_query,newlocation.formatted_query,newlocation.latitude,newlocation.longitude];
             client.query(insertStatement,insertValues);
@@ -83,6 +89,8 @@ function searchForLatLong (query){
 // });
 
 app.get('/location', (request, response) => {
+console.log('serch for latlong firing 98')
+console.log('request DATA 91',request.query.data)
 searchForLatLong(request.query.data)
 .then(location => response.send(location))
 .catch(error=> handleError() )
