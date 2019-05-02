@@ -1,88 +1,98 @@
 'use strict';
-const express=require('express');
-const cors=require('cors');
+
 require('dotenv').config();
-const superagent=require('superagent');
-const PORT=process.env.PORT||3000;
-const app=express();
+
+const express = require('express');
+const cors = require('cors');
+const superagent = require('superagent');
+
+const app = express();
+
+const PORT = process.env.PORT || 3000;
 app.use(cors());
-app.use(express.static('./'));
+app.use(express.static('./public'));
 
-
-app.get('/location',(req,res)=>{
-  try{
-   const queryData=req.query.data;
-   let geoUrl=`https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
-    superagent.get(geoUrl)
-    
-    .end((err,apiResponse)=>{
-   const location=new Location(queryData,apiResponse.body);
-   res.send(location);
-    }); 
-  }
-  catch(error){
-    handleError(error);
-  }
+app.get('/', (request, response) => {
+  response.send('server works');
 });
 
-
-//location constructor
-function Location(queryData,data){
-  this.search_query=queryData;
-  this.formatted_query=data.results[0].formatted_address;
-  this.latitude=data.results[0].geometry.location.lat;
-  this.longitude=data.results[0].geometry.location.lng;
-  }
-
-
-app.get('/weather',(request,response)=>{
-  try{
-    console.log(request.query.data.latitude);
-    const weatherUrl=`https://api.darksky.net/forecast/${process.env.DARKSKY_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
-  superagent.get(weatherUrl)
-  .then(result=>{
-    const weatherSummaries=result.body.daily.data.map(el=>{
-    return new Weather(el);
-    });
-    response.send(weatherSummaries);
-  })
-  }
-  catch(error){handleError(error,response);}
-});
-
-
-
-function Weather(demo){
-  this.time=new Date(demo.time*1000).toDateString();
-  this.forecast=demo.summary;
+function GEOloc(query, res) {
+  this.search_query = query;
+  this.formatted_query = res.results[0].formatted_address;
+  this.latitude = res.results[0].geometry.location.lat;
+  this.longitude = res.results[0].geometry.location.lng;
 }
 
 
-
-app.get('/events',getEvent);
-function getEvent(request,response){
-const eventUrl=`https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&expand=venue`;
-superagent.get(eventUrl)
-.set('Authorization',`Bearer ${process.env.PERSONAL_TOKEN}`)
-.then(result=>{
-  console.log(result.body.events);
-  const eventSummaries=result.body.events.map(item=>{
-    const summary =new Event(item);   
-    return summary;
-  });
-  response.send(eventSummaries);
-})
-
+function Forecast(forecast, time) {
+  this.forecast = forecast;
+  this.time = time;
 }
+
 function Event(data){
-this.link=data.url;
-this.name=data.name.text;
-this.event_date=data.start.local;
-this.summary=data.summary;
+  this.link = data.link;
+  this.name = data.name.text;
+  this.event_date = data.start.local;
+  this.summary = data.summary;
 }
 
-//error handling
-// function handleError() {
-//   return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
-// }
-app.listen(PORT,()=>{});
+function handleError() {
+  return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
+}
+
+app.get('/location', (request, response) => {
+  try {
+    const queryData = request.query.data;
+    let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
+    superagent.get(geocodeURL)
+      .end((err, res) => {
+        const location = new GEOloc(queryData, res.body);
+        response.send(location);
+      });
+  } catch (error) {
+    response.send(handleError);
+  }
+
+});
+
+
+app.get('/weather', (request, response) => {
+  console.log(request.query.data);
+  try {
+    let weatherURL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
+    superagent.get(weatherURL)
+      .end((err, res) => {
+        let daily = Object.entries(res.body)[6];
+        let dailyData = daily[1].data;//hourly day forecast
+        let myForecast = dailyData.map( element => {
+          let date = new Date(element.time * 1000).toDateString();
+          let temp = new Forecast(element.summary, date);
+          return temp;
+        });
+        response.send(myForecast);
+      });
+  } catch (error) {
+    response.send(handleError);
+  }
+});
+
+app.get('/events', (request, response) => {
+  try {
+    let eventbriteURL = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&expand=venue`;
+    superagent.get(eventbriteURL)
+      .set('Authorization', `Bearer ${process.env.PERSONAL_TOKEN}`)
+      .then( result => {
+        const eventSummaries = result.body.events.map(item => {
+          const summary = new Event(item);
+          return summary;
+        });
+        response.send(eventSummaries);
+      });
+  } catch (error) {
+    response.send(handleError);
+  }
+});
+
+app.use('*', (request, response) => response.send('Sorry, that route does not exist.'));
+
+app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
