@@ -18,7 +18,6 @@ app.get('/location',(req,res)=>{
     .end((err,apiResponse)=>{
    const location=new Location(queryData,apiResponse.body);
    res.send(location);
-   doo();
     }); 
   }
   catch(error){
@@ -81,14 +80,9 @@ this.name=data.name.text;
 this.event_date=data.start.local;
 this.summary=data.summary;
 }
-function doo(){
- element = document.getElementById(error-container);
- if (element){
-  $('.error-container').hide();
-}
-}
+
 //error handling
-function handleError() {
-  return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
-}
+// function handleError() {
+//   return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
+// }
 app.listen(PORT,()=>{});

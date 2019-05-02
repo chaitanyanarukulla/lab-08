@@ -1,7 +1,7 @@
 # lab-08
-# 301d56lab-07-back-end
+# 301d56lab-08-back-end
 
-**Author**: Xia Liu, Chai narukulla
+**Author**: Tim.buch, Chai narukulla
 **Version**: 1.0.0 (increment the patch/fix version number if you make more commits past your first submission)
 
 ## Overview
