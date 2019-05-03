@@ -2,31 +2,29 @@
 
 require('dotenv').config();
 
-const pg = require('pg');
 const express = require('express');
 const cors = require('cors');
 const superagent = require('superagent');
-
+const pg = require('pg');
 const app = express();
 
-
 const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+// app.use(express.static('./public'));
+
+//database setup
 const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
-app.use(cors());
-app.use(express.static('./public'));
 
-app.get('/', (request, response) => {
-  response.send('server works');
-});
 
+//constructor functions-------------------------------------------------------->
 function Location(query, res) {
   this.search_query = query;
   this.formatted_query = res.results[0].formatted_address;
   this.latitude = res.results[0].geometry.location.lat;
   this.longitude = res.results[0].geometry.location.lng;
 }
-
 
 function Forecast(forecast, time) {
   this.forecast = forecast;
@@ -39,83 +37,77 @@ function Event(data){
   this.event_date = data.start.local;
   this.summary = data.summary;
 }
+//API routes------------------------------------------------------------>
+app.get('/', (request, response) => response.send('server works'));
+app.get('/location', getLocation);
 
-function handleError() {
+//helper functions-------------------------------------------------------->
+function handleError(error) {
   return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
 }
 
-function searchForLatLong (query){
-  let sqlSelect = 'SELECT * FROM location WHERE search_query = $1;';
-  let value = [query];
-  console.log(value);
-  
-  return client.query(sqlSelect,value)
-  // console.log(client.query(sqlSelect,value))
-  .then((data) => { 
-    console.log(data);
-    // console.log('with in query');
-    // console.log(data);
-    if(data.rowCount > 0 ){
-      return data.rows[0];
-    }else{
-      const queryData = request.query.data;
-          let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
-          superagent.get(geocodeURL)
-          .then(response =>{
-            let newlocation = new Location(query,res);
-            let insertStatement = 'INSERT INTO location (search_query, formatted_query, latitude, longitude ) VALUES ($1, $2, $3, $4);';
-            let insertValues = [newlocation.search_query,newlocation.formatted_query,newlocation.latitude,newlocation.longitude];
-            client.query(insertStatement,insertValues);
-            return newlocation;
-  
-          })
-          .catch(error => handleError() );
-    }
-  })
+function getLocation(request, response){
+  const queryData = request.query.data;
+  queryLocationDB(queryData, response);
 }
-// app.get('/location', (request, response) => {
-//   try {
-//     const queryData = request.query.data;
-//     let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
-//     superagent.get(geocodeURL)
-//       .end((err, res) => {
-//         const location = new GEOloc(queryData, res.body);
-//         response.send(location);
-//       });
-//   } catch (error) {
-//     response.send(handleError);
-//   }
 
-// });
+function queryLocationDB(queryData, response){
+  let sqlStatement = 'SELECT * FROM geoloc WHERE search_query = $1;';
+  let values = [queryData];
+  return client.query(sqlStatement, values)
+    .then( data => {
+      if(data.rowCount > 0) {
+        response.send(data.rows[0]);
+      } else {
+        console.log('retrieving data and saving to database');
+        let geocodeURL = `https://maps.googleapis.com/maps/api/geocode/json?address=${queryData}&key=${process.env.GEOCODE_API_KEY}`;
+        return superagent.get(geocodeURL)
+          .then( res => {
+            let location = new Location(queryData, res.body);
+            let insertStatement = 'INSERT INTO geoloc ( search_query, formatted_query, latitude, longitude) VALUES ( $1, $2, $3, $4);';
+            let insertValues = [location.search_query, location.formatted_query, location.latitude, location.longitude];
+            client.query(insertStatement, insertValues);
+            response.send(location);
+          })
+          .catch(error => handleError(error));
+      }
+    })
+    .catch(error => handleError(error));
+}
 
-app.get('/location', (request, response) => {
-console.log('serch for latlong firing 98')
-console.log('request DATA 91',request.query.data)
-searchForLatLong(request.query.data)
-.then(location => response.send(location))
-.catch(error=> handleError() )
-
-});
-
-
+function queryDB(queryData, tableName, response){
+  let sqlStatement = `SELECT * FROM ${tableName} WHERE forecast = $1;`;
+  let values = [queryData];
+  console.log('queryDB being executed');
+  return client.query(sqlStatement, values)
+    .then( data => {
+      if(data.rowCount > 0) {
+        response.send(data.rows[0]);
+      }
+    })
+    .catch(error => handleError(error));
+}
 app.get('/weather', (request, response) => {
   console.log(request.query.data);
-  try {
-    let weatherURL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
-    superagent.get(weatherURL)
-      .end((err, res) => {
-        let daily = Object.entries(res.body)[6];
-        let dailyData = daily[1].data;//hourly day forecast
-        let myForecast = dailyData.map( element => {
-          let date = new Date(element.time * 1000).toDateString();
-          let temp = new Forecast(element.summary, date);
-          return temp;
-        });
-        response.send(myForecast);
+  // queryDB(request.query.data, 'forecast', response);
+  console.log('not in database, running api to insert');
+  let weatherURL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
+  superagent.get(weatherURL)
+    .then( res => {
+      let daily = Object.entries(res.body)[6];
+      let dailyData = daily[1].data;//hourly day forecast
+      let myForecast = dailyData.map( element => {
+        let date = new Date(element.time * 1000).toDateString();
+        let temp = new Forecast(element.summary, date);
+        return temp;
       });
-  } catch (error) {
-    response.send(handleError);
-  }
+      console.log('inserting into database');
+      // let insertStatement = 'INSERT INTO forecast ( forecast, time) VALUES ( $1, $2);';
+      // let insertValues = [myForecast.date.forecast, myForecast.temp.time];
+      // client.query(insertStatement, insertValues);
+      response.send(myForecast);
+    })
+    .catch(error => handleError(error));
 });
 
 app.get('/events', (request, response) => {
@@ -136,5 +128,4 @@ app.get('/events', (request, response) => {
 });
 
 app.use('*', (request, response) => response.send('Sorry, that route does not exist.'));
-
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
