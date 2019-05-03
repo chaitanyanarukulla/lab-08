@@ -41,10 +41,7 @@ function Event(data){
 app.get('/', (request, response) => response.send('server works'));
 app.get('/location', getLocation);
 
-
-
-
-//helper functions
+//helper functions-------------------------------------------------------->
 function handleError(error) {
   return { 'status': 500, 'responseText': 'Sorry, something went wrong' };
 }
@@ -55,15 +52,11 @@ function getLocation(request, response){
 }
 
 function queryLocationDB(queryData, response){
-  // const queryData = request.query.data;
   let sqlStatement = 'SELECT * FROM geoloc WHERE search_query = $1;';
   let values = [queryData];
   return client.query(sqlStatement, values)
     .then( data => {
-      console.log(`accessed .then of return client`);
       if(data.rowCount > 0) {
-        console.log(`sending data from database`);
-        
         response.send(data.rows[0]);
       } else {
         console.log('retrieving data and saving to database');
@@ -88,15 +81,12 @@ function queryDB(queryData, tableName, response){
   console.log('queryDB being executed');
   return client.query(sqlStatement, values)
     .then( data => {
-      console.log(`accessed .then of queryDB`);
       if(data.rowCount > 0) {
-        console.log(`sending data from database from queryDB`);
         response.send(data.rows[0]);
       }
     })
     .catch(error => handleError(error));
 }
-
 app.get('/weather', (request, response) => {
   console.log(request.query.data);
   // queryDB(request.query.data, 'forecast', response);
@@ -138,5 +128,4 @@ app.get('/events', (request, response) => {
 });
 
 app.use('*', (request, response) => response.send('Sorry, that route does not exist.'));
-
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
