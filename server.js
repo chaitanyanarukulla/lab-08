@@ -90,7 +90,6 @@ function queryDB(queryData, tableName, response){
 app.get('/weather', (request, response) => {
   console.log(request.query.data);
   // queryDB(request.query.data, 'forecast', response);
-  console.log('not in database, running api to insert');
   let weatherURL = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
   superagent.get(weatherURL)
     .then( res => {
@@ -118,7 +117,7 @@ app.get('/events', (request, response) => {
       .then( result => {
         const eventSummaries = result.body.events.map(item => {
           const summary = new Event(item);
-          return summary;
+        return summary;
         });
         response.send(eventSummaries);
       });
