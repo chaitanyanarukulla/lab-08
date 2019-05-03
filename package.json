@@ -1,7 +1,7 @@
 {
-  "name": "301d56lab-07-back-end",
+  "name": "lab8-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "**Author**:  **Version**: 1.0.0 (increment the patch/fix version number if you make more commits past your first submission)",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,21 +9,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xialiu1988/301d56lab-07-back-end.git"
+    "url": ""
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/xialiu1988/301d56lab-07-back-end/issues"
+    "url": ""
   },
-  "homepage": "https://github.com/xialiu1988/301d56lab-07-back-end#readme",
+  "homepage": "",
   "dependencies": {
     "@types/pg": "^7.4.14",
     "cors": "^2.8.5",
     "dotenv": "^7.0.0",
     "express": "^4.16.4",
-    "node": "^12.1.0",
-    "nodemon": "^1.19.0",
     "pg": "^7.10.0",
     "superagent": "^5.0.5"
   }
