@@ -11,8 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-// app.use(express.static('./public'));
-
+app.use(express.static('./'));
 //database setup
 const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
@@ -86,6 +85,10 @@ function queryDB(queryData, tableName, response){
       }
     })
     .catch(error => handleError(error));
+
+
+
+    
 }
 app.get('/weather', (request, response) => {
   console.log(request.query.data);
